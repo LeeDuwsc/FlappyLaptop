@@ -36,7 +36,7 @@ void Laptop::Update()
 void Laptop::Jump()
 {
     if (velocity.getY() >= -1.8)
-        velocity.setY(-1.8f);
+        velocity.setY(-1.5f);
 
     if (velocity.getY() < -1.8)
         velocity.setY(1.8f);

@@ -30,6 +30,9 @@ SDL_Texture *UI_HandTexture = NULL;
 SDL_Texture *UI_TapTexture = NULL;
 SDL_Texture *UI_OKButtonTexture = NULL;
 SDL_Texture *UI_GameOverTexture = NULL;
+SDL_Texture *MenuText = NULL;
+SDL_Texture *StartButton = NULL;
+SDL_Texture *MenuReturn = NULL;
 
 SDL_Event event;
 bool gameRunning = true;
@@ -37,8 +40,8 @@ bool gameRunning = true;
 const int frameRate = 60;
 int startTicks;
 int frameTicks;
-const int PIPE_UP_MAX_Y = -30,
-          PIPE_UP_MIN_Y = -90;
+const int PIPE_UP_MAX_Y = -20,
+          PIPE_UP_MIN_Y = -70;
 float oneFlapTime = 0.2f;
 float cTime = 0.0f;
 int num = 0;
@@ -50,6 +53,7 @@ std::string scoreText;
 float scoreTime = 0.f;
 int currentScore = 0;
 bool scoreCheck = false;
+int GAME_STATE = 0;
 
 float gameSpeed = 3.3f;
 
@@ -89,6 +93,9 @@ bool Init()
     UI_TapTexture = window.LoadTexture("res/gfx/Tap.png");
     UI_OKButtonTexture = window.LoadTexture("res/gfx/OkButton.png");
     UI_GameOverTexture = window.LoadTexture("res/gfx/GameOverText.png");
+    MenuText = window.LoadTexture("res/gfx/MENUtext.png");
+    StartButton = window.LoadTexture("res/gfx/StartButton.png");
+    MenuReturn = window.LoadTexture("res/gfx/MenueButton.png");
 
     return true;
 }
@@ -119,13 +126,16 @@ Ground ground[2] = {
 
 Laptop laptop(Vector(25, 96), laptopTex[0]);
 
-Button OkButton(Vector(50.f, 150.f), UI_OKButtonTexture);
+Button OkButton(Vector(80.f, 150.f), UI_OKButtonTexture);
+
+Button START(Vector(50.f, 140.f), StartButton);
+
+Button MENU(Vector(20.f, 150.f), MenuReturn);
 
 void MenuReset()
 {
     laptop.setPosition(Vector(25.f, 110.f));
     laptop.setAngle(0.f);
-
     for (int i = 0; i < 4; i++)
     {
         float randPipe = (float)RandomValues(PIPE_UP_MAX_Y, PIPE_UP_MIN_Y);
@@ -162,8 +172,18 @@ void GameLoop()
                 {
                     start = true;
                 }
+
                 if (IsCollide((float)mouseX / 3, (float)mouseY / 3, OkButton) && lapDead)
                 {
+                    MenuReset();
+                }
+                if (IsCollide((float)mouseX / 3, (float)mouseY / 3, START))
+                {
+                    GAME_STATE = 1;
+                }
+                if (IsCollide((float)mouseX / 3, (float)mouseY / 3, MENU))
+                {
+                    GAME_STATE = 0;
                     MenuReset();
                 }
             }
@@ -171,131 +191,151 @@ void GameLoop()
         }
         }
     }
-    window.Clear();
-
-    window.Render(background, Vector(0, 0));
-
-    // sinh cot random
-
-    for (num = 0; num < 4; num++)
+    if (GAME_STATE == 0)
     {
-        float randPipe = (float)RandomValues(PIPE_UP_MAX_Y, PIPE_UP_MIN_Y);
-        if (pipe_up[num].pipeCrossed)
-        {
-            pipe_up[num].setPosition(Vector(pipe_up[num].getPosition().getX(), randPipe));
-            pipe_up[num].pipeCrossed = false;
-        }
-
-        if (pipe_down[num].pipeCrossed)
-        {
-            pipe_down[num].setPosition(Vector(pipe_down[num].getPosition().getX(), 190 + randPipe));
-            pipe_down[num].pipeCrossed = false;
-        }
-    }
-    // tinh diem
-    if (scoreCheck)
-    {
-        scoreTime += 0.007f * gameSpeed;
-        if (scoreTime >= 1.f)
-        {
-            scoreTime = 0.f;
-            scoreCheck = false;
-        }
-    }
-    // xu ly va cham giua cot va laptop
-    if (!lapDead)
-    {
-        for (num = 0; num < 4; num++)
-        {
-            if (IsCollide(laptop, pipe_up[num]))
-                lapDead = true;
-            else if (IsCollide(laptop, pipe_down[num]))
-                lapDead = true;
-            else if (IsTrigger(laptop, pipe_down[num].getPosition().getX() + (pipe_down[num].getCurrentFrame().w / 2.f), pipe_down[num].getPosition().getY(), 100.f) && !scoreCheck)
-            {
-                scoreCheck = true;
-                currentScore += 1;
-            }
-            if (num < 2)
-                if (IsCollide(laptop, ground[num]))
-                    lapDead = true;
-            if (laptop.getPosition().getY() <= 0)
-                lapDead = true;
-        }
-    }
-
-    // render pipe
-    if (start)
-    {
-        for (int i = 0; i < 4; ++i)
+        window.Render(background, Vector(0, 0));
+        for (num = 0; num < 2; num++)
         {
             if (!lapDead)
             {
-                pipe_down[i].Update(gameSpeed);
-                pipe_up[i].Update(gameSpeed);
+                ground[num].Update(gameSpeed);
             }
-            window.Render(pipe_down[i]);
-            window.Render(pipe_up[i]);
+            window.Render(ground[num]);
         }
-    }
-    // UI mini menu
-    if (!start)
-    {
-        window.Render(UI_GetReadyTexture, Vector(25.f, 40.f));
-        window.Render(UI_LapTexture, Vector(85.f, 100.f));
-        window.Render(UI_HandTexture, Vector(90.f, 120.f));
-        window.Render(UI_TapTexture, Vector(103.f, 130.f));
-        laptop.Wave();
-    }
-    else
-    {
-        if (!lapDead)
-        {
-            laptop.setGravity(0.f, 0.05f);
-            laptop.Update();
-        }
-    }
-
-    // ground render
-    for (num = 0; num < 2; num++)
-    {
-        if (!lapDead)
-        {
-            ground[num].Update(gameSpeed);
-        }
-        window.Render(ground[num]);
-    }
-
-    // laptop render
-    if (!lapDead)
-    {
-        if (cTime >= oneFlapTime)
-        {
-            cTime = 0.0f;
-            num2 += 1;
-            if (num2 > 2)
-                num2 = 0;
-        }
-        cTime += 0.02f;
-        window.renderRotate(laptopTex[num2], laptop.getPosition(), laptop.getAngle());
-    }
-    else
-        window.renderRotate(laptopTex[0], laptop.getPosition(), laptop.getAngle());
-
-    // Game Over
-    if (lapDead)
-    {
-        window.Render(OkButton);
-        window.Render(UI_GameOverTexture, Vector(25.f, 50.f));
+        window.Render(MenuText, Vector(12.f, 40.f));
+        window.Render(laptopTex[2], Vector(60.f, 80.f));
+        window.Render(START);
         SDL_GetMouseState(&mouseX, &mouseY);
     }
-
-    // render score
-    if (start)
+    if (GAME_STATE == 1)
     {
-        window.renderText(200.0f, 10.0f, currentScore, font, scoreColor);
-    }
+        window.Clear();
 
+        window.Render(background, Vector(0, 0));
+        // sinh cot random
+
+        for (num = 0; num < 4; num++)
+        {
+            float randPipe = (float)RandomValues(PIPE_UP_MAX_Y, PIPE_UP_MIN_Y);
+            if (pipe_up[num].pipeCrossed)
+            {
+                pipe_up[num].setPosition(Vector(pipe_up[num].getPosition().getX(), randPipe));
+                pipe_up[num].pipeCrossed = false;
+            }
+
+            if (pipe_down[num].pipeCrossed)
+            {
+                pipe_down[num].setPosition(Vector(pipe_down[num].getPosition().getX(), 190 + randPipe));
+                pipe_down[num].pipeCrossed = false;
+            }
+        }
+        // tinh diem
+        if (scoreCheck)
+        {
+            scoreTime += 0.007f * gameSpeed;
+            if (scoreTime >= 1.f)
+            {
+                scoreTime = 0.f;
+                scoreCheck = false;
+            }
+        }
+
+        // render pipe
+        if (start)
+        {
+            for (int i = 0; i < 4; ++i)
+            {
+                if (!lapDead)
+                {
+                    pipe_down[i].Update(gameSpeed);
+                    pipe_up[i].Update(gameSpeed);
+                }
+                window.Render(pipe_down[i]);
+                window.Render(pipe_up[i]);
+            }
+        }
+
+        // ground render
+        for (num = 0; num < 2; num++)
+        {
+            if (!lapDead)
+            {
+                ground[num].Update(gameSpeed);
+            }
+            window.Render(ground[num]);
+        }
+
+        // laptop render
+        if (!lapDead)
+        {
+            if (cTime >= oneFlapTime)
+            {
+                cTime = 0.0f;
+                num2 += 1;
+                if (num2 > 2)
+                    num2 = 0;
+            }
+            cTime += 0.02f;
+            window.renderRotate(laptopTex[num2], laptop.getPosition(), laptop.getAngle());
+        }
+        else
+            window.renderRotate(laptopTex[0], laptop.getPosition(), laptop.getAngle());
+
+        // xu ly va cham giua cot va laptop
+        if (!lapDead)
+        {
+            for (num = 0; num < 4; num++)
+            {
+                if (IsCollide(laptop, pipe_up[num]))
+                    lapDead = true;
+                else if (IsCollide(laptop, pipe_down[num]))
+                    lapDead = true;
+                else if (IsTrigger(laptop, pipe_down[num].getPosition().getX() + (pipe_down[num].getCurrentFrame().w / 2.f), pipe_down[num].getPosition().getY(), 100.f) && !scoreCheck)
+                {
+                    scoreCheck = true;
+                    currentScore += 1;
+                }
+                if (num < 2)
+                    if (IsCollide(laptop, ground[num]))
+                        lapDead = true;
+                if (laptop.getPosition().getY() <= 0)
+                    lapDead = true;
+            }
+        }
+
+        // UI mini menu
+        if (!start)
+        {
+            window.Render(UI_GetReadyTexture, Vector(25.f, 40.f));
+            window.Render(UI_LapTexture, Vector(85.f, 100.f));
+            window.Render(UI_HandTexture, Vector(90.f, 120.f));
+            window.Render(UI_TapTexture, Vector(103.f, 130.f));
+            laptop.Wave();
+        }
+        else
+        {
+            if (!lapDead)
+            {
+                laptop.setGravity(0.f, 0.05f);
+                laptop.Update();
+            }
+        }
+
+        // Game Over
+        if (lapDead)
+        {
+            window.Render(MENU);
+            window.Render(OkButton);
+            window.Render(UI_GameOverTexture, Vector(25.f, 50.f));
+            SDL_GetMouseState(&mouseX, &mouseY);
+        }
+
+        // render score
+        if (start)
+        {
+            window.renderText(200.0f, 10.0f, currentScore, font, scoreColor);
+        }
+    }
     window.Display();
 
     frameTicks = SDL_GetTicks() - startTicks;
